@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>名人很忙 · 行迹图导航</title>
+<style>
+  :root{
+    --green:#2f6b53; --green-d:#1d4a38; --green-l:#eaf3ed;
+    --paper:#f6f1e6; --ink:#2c2a24; --ink-3:#7c7464; --line:#d9d0bd;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#fbf8f0,#eef2ec);
+    font-family:'Microsoft YaHei','PingFang SC',sans-serif;color:var(--ink);
+    min-height:100vh;padding:46px 26px 60px}
+  .wrap{max-width:1520px;margin:0 auto}
+  header{text-align:center;margin-bottom:34px}
+  header h1{margin:0;font-size:34px;letter-spacing:2px;color:var(--green-d)}
+  .subtitle{font-size:14px;letter-spacing:3px;color:var(--ink-3);font-weight:400;white-space:nowrap;
+    position:absolute;left:50%;transform:translateX(-50%)}
+  /* 排序栏贴左缘；副标题绝对居中，与上方大标题同轴 */
+  .subrow{position:relative;display:flex;align-items:center;margin-top:12px;min-height:34px}
+  .subrow .sortbar{margin-right:auto}
+  @media (max-width:1100px){
+    .subrow{flex-wrap:wrap;justify-content:center;gap:10px}
+    .subrow .sortbar{margin-right:0}
+    .subtitle{position:static;transform:none}
+  }
+  .sub{margin:14px auto 0;max-width:640px;font-size:13.5px;line-height:1.8;color:var(--ink-3)}
+  .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px}
+  .card{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:13px;
+    padding:20px 20px 16px;box-shadow:0 6px 18px rgba(45,70,55,.08);transition:.18s;overflow:hidden}
+  .card.done{cursor:pointer}
+  .card.done:hover{transform:translateY(-4px);border-color:var(--green);box-shadow:0 12px 26px rgba(45,70,55,.16)}
+  .card .badge{position:absolute;top:12px;right:12px;font-size:11px;color:#fff;
+    background:var(--green);padding:2.5px 9px;border-radius:20px;letter-spacing:1px}
+  .card .nm{font-size:22.5px;font-weight:700;color:var(--green-d);letter-spacing:1px}
+  .card .dy{font-size:12px;color:var(--ink-3);margin:2px 0 12px}
+  .card .home{display:inline-block;font-size:11.5px;color:var(--green);background:var(--green-l);
+    border:1px solid #cfe3d8;padding:2.5px 10px;border-radius:20px;margin-bottom:11px}
+  .card .tip{font-size:12px;line-height:1.7;color:#4a463c}
+  .card.undone{background:#faf8f3;color:#9a948520}
+  .card.undone .nm,.card.undone .dy,.card.undone .tip{color:#b3ac9c}
+  .card.undone .badge{background:#b9b2a2}
+  .card.undone .home{border-color:#e3ddcf;background:#f1ede2;color:#a59e8c}
+  .foot{margin-top:38px;text-align:center;font-size:12.5px;color:var(--ink-3);line-height:1.9}
+  .foot b{color:var(--green-d)}
+  .sortbar{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
+  .sortbar .lb{font-size:12.5px;color:var(--ink-3);letter-spacing:2px;margin-right:3px}
+  .sbtn{font-family:inherit;font-size:12.5px;color:var(--green-d);background:#fff;
+    border:1.5px solid var(--line);border-radius:20px;padding:5.5px 16px;cursor:pointer;
+    letter-spacing:.5px;transition:.16s;box-shadow:0 2px 6px rgba(45,70,55,.06)}
+  .sbtn:hover{border-color:var(--green);transform:translateY(-1px)}
+  .sbtn.on{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 3px 9px rgba(47,107,83,.22)}
+  @media (max-width:1100px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+  @media (max-width:700px){ .grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>名人很忙</h1>
+    <div class="subrow">
+      <div class="sortbar">
+        <span class="lb">排序</span>
+        <button type="button" class="sbtn on" data-k="count">行程节点</button>
+        <button type="button" class="sbtn" data-k="py">姓氏拼音</button>
+        <button type="button" class="sbtn" data-k="dy">朝代先后</button>
+      </div>
+      <span class="subtitle">跟着名人去旅行 · 行迹图</span>
+    </div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <p class="foot">本文档由人工智能根据公开资料整理，仅用于教师个体备课、研究，请务必做好审核后使用。</p>
+</div>
+
+<script src="people.js"></script>
+<script>
+(function(){
+  var grid = document.getElementById('grid');
+  var list = (window.PEOPLE && window.PEOPLE.length) ? window.PEOPLE : [];
+  if(!list.length){
+    grid.innerHTML = '<p style="color:#a59e8c">未找到 people.js 或其中没有人物。</p>';
+    return;
+  }
+
+  /* ---- 排序数据（站点数取自各页 SITES，与页内「共 N 站」一致） ---- */
+  var SITE_COUNT = {
+    'zhenghe.html':49,'xuanzang.html':21,'qiuchuji.html':11,'zhangqian.html':13,
+    'jianzhen.html':15,'faxian.html':25,'xuxiake.html':15,'yeluchucai.html':16,
+    'zhoudaguan.html':12,'wangdayuan.html':19,'yijing.html':11,'ganying.html':15,
+    'kongzi.html':16,'simaqian.html':8,'sushi.html':17,'libai.html':15,
+    'dufu.html':13,'linzexu.html':21,'wangyangming.html':8,'guyanwu.html':12,
+    'lishizhen.html':6,'lidayuan.html':10,'xielingyun.html':13,'wenzhenxiang.html':17,
+    'suzhe.html':9,'huangzunxian.html':12,'kangyouwei.html':19,'liangqichao.html':23,
+    'baijuyi.html':11,'luyou.html':14
+  };
+  /* 姓氏拼音（复姓耶律作 yelv；新增人物时若无映射则按 file 名回退） */
+  var SURNAME_PY = {
+    '郑和':'zheng','玄奘':'xuan','丘处机':'qiu','张骞':'zhang','鉴真':'jian',
+    '法显':'fa','徐霞客':'xu','耶律楚材':'yelv','周达观':'zhou','汪大渊':'wang',
+    '义净':'yi','甘英':'gan','孔子':'kong','司马迁':'si','苏轼':'su',
+    '李白':'li','杜甫':'du','林则徐':'lin','王阳明':'wang','顾炎武':'gu',
+    '李时珍':'li','郦道元':'li','谢灵运':'xie','文天祥':'wen','苏辙':'su',
+    '黄遵宪':'huang','康有为':'kang','梁启超':'liang','白居易':'bai','陆游':'lu'
+  };
+  /* 朝代先后：先按朝代（春秋→清），同朝代内再按出生年排先后 */
+  var DY_ORDER = {'春秋':1,'汉':2,'东晋':3,'北魏':4,'南朝宋':5,'唐':6,
+                  '北宋':7,'南宋':8,'元':9,'明':10,'清':11};
+  /* 出生年基准（公元前用负数；甘英生卒不详，取东汉约公元 50 年作排序锚点） */
+  var DY_YEAR = {
+    '孔子':-551,'张骞':-164,'司马迁':-145,'甘英':50,
+    '法显':337,'谢灵运':385,'郦道元':472,
+    '玄奘':602,'义净':635,'鉴真':688,'李白':701,'杜甫':712,'白居易':772,
+    '苏轼':1037,'苏辙':1039,
+    '陆游':1125,'文天祥':1236,
+    '丘处机':1148,'耶律楚材':1190,'周达观':1266,'汪大渊':1311,
+    '郑和':1371,'王阳明':1472,'李时珍':1518,'徐霞客':1587,'顾炎武':1613,
+    '林则徐':1785,'黄遵宪':1848,'康有为':1858,'梁启超':1873
+  };
+
+  function pyOf(p){
+    return SURNAME_PY[p.name] || (p.file || '').replace(/\.html$/, '');
+  }
+  function countOf(p){
+    return SITE_COUNT[p.file] || 0;
+  }
+  function dyOf(p){
+    return DY_ORDER[p.dynasty] || 99;
+  }
+  function yearOf(p){
+    return DY_YEAR[p.name] || 9999;   // 缺出生年基准者排到该朝代末尾
+  }
+  var KEYS = {
+    count: function(a, b){ return countOf(b) - countOf(a) || (pyOf(a) < pyOf(b) ? -1 : 1); },
+    py:    function(a, b){ var k = pyOf(a) < pyOf(b) ? -1 : (pyOf(a) > pyOf(b) ? 1 : 0);
+                           return k || ((a.file || '') < (b.file || '') ? -1 : 1); },
+    dy:    function(a, b){ return dyOf(a) - dyOf(b) || (yearOf(a) - yearOf(b)) || (pyOf(a) < pyOf(b) ? -1 : 1); }
+  };
+
+  function card(p){
+    var c = document.createElement('div');
+    c.className = 'card ' + (p.done === false ? 'undone' : 'done');
+    /* 30 人全部完成后角标一律不显示；未制作卡仍保留 */
+    var badge = p.done === false ? '<span class="badge">未制作</span>' : '';
+    c.innerHTML =
+      badge +
+      '<div class="nm">' + p.name + '</div>' +
+      '<div class="dy">' + (p.dynasty || '') + '</div>' +
+      '<span class="home">故乡 · ' + (p.home || '—') + '</span>' +
+      '<div class="tip">' + (p.tip || '') + '</div>';
+    if(p.done !== false && p.file){ c.addEventListener('click', function(){ location.href = p.file; }); }
+    return c;
+  }
+
+  function render(key){
+    var arr = list.slice().sort(KEYS[key] || KEYS.count);
+    grid.innerHTML = '';
+    arr.forEach(function(p){ grid.appendChild(card(p)); });
+  }
+
+  var btns = document.querySelectorAll('.sbtn');
+  Array.prototype.forEach.call(btns, function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.forEach.call(btns, function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      render(b.getAttribute('data-k'));
+    });
+  });
+  render('count');
+})();
+</script>
+</body>
+</html>
